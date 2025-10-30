@@ -54,8 +54,9 @@ env:
   LETSENCRYPT_ACCOUNT_EMAIL: robert.pye@ethosvo.org
 
   ## Tell Discourse it's behind Traefik (to stop redirect loops)
-  DISCOURSE_FORCE_HTTPS: false
   DISCOURSE_TRUSTED_PROXIES: 172.18.0.0/16
+  DISCOURSE_USE_X_FORWARDED_PROTO: true
+  
 
 volumes:
   - volume:
