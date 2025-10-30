@@ -39,8 +39,9 @@ env:
 
   ## Your Discourse hostname (must match the Traefik router rule)
   DISCOURSE_HOSTNAME: commons.ethosvo.org
-
   DISCOURSE_DEVELOPER_EMAILS: 'commons@ethosvo.org'
+  DISCOURSE_USE_HTTPS: "true"
+  DISCOURSE_FORCE_HTTPS: "false"
 
   ## SMTP setup
   DISCOURSE_SMTP_ADDRESS: email-smtp.eu-west-2.amazonaws.com
