@@ -47,10 +47,14 @@ env:
   DISCOURSE_SMTP_USER_NAME: AKIA5WBSHOMRBYEZWAFA
   DISCOURSE_SMTP_PASSWORD: "BFgW9L8DP/e6CLXBPMGZykmnr9SiiB8TXhqG7vTGoNHz"
   DISCOURSE_SMTP_DOMAIN: commons.ethosvo.org
-  DISCOURSE_NOTIFICATION_EMAIL: noreply@commons.ethosvo.org
+  DISCOURSE_NOTIFICATION_EMAIL: noreply@ethosvo.org
 
   ## Let’s Encrypt email for certificate issuance (via Traefik)
   LETSENCRYPT_ACCOUNT_EMAIL: robert.pye@ethosvo.org
+
+  ## Tell Discourse it's behind Traefik (to stop redirect loops)
+  DISCOURSE_FORCE_HTTPS: false
+  DISCOURSE_TRUSTED_PROXIES: 172.18.0.0/16
 
 volumes:
   - volume:
