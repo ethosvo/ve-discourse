@@ -70,9 +70,9 @@ hooks:
     - exec:
         cd: $home/plugins
         cmd:
-          - git clone https://github.com/discourse/docker_manager.git
-          - git clone https://github.com/discourse/discourse-google-oauth2.git
-
+          - git clone --depth 1 https://github.com/discourse/docker_manager.git
+          - git clone --depth 1 https://github.com/discourse/discourse-google-oauth2.git
+          
 ## Traefik routing labels
 labels:
   traefik.enable: "true"
