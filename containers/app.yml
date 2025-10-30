@@ -80,8 +80,8 @@ labels:
   traefik.http.routers.discourse.entrypoints: "websecure"
   traefik.http.routers.discourse.tls: "true"
   traefik.http.services.discourse.loadbalancer.server.port: "80"
-  # Uncomment if you use the redirect middleware in Traefik:
-  # traefik.http.routers.discourse.middlewares: "redirect-to-https"
+  traefik.http.middlewares.discourse-https-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
+  traefik.http.routers.discourse.middlewares: "discourse-https-headers"
 
 run:
   - exec: echo "Beginning of custom commands"
