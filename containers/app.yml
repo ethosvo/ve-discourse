@@ -39,15 +39,15 @@ env:
   ## Your Discourse hostname (must match the Traefik router rule)
   DISCOURSE_HOSTNAME: commons.ethosvo.org
 
-  DISCOURSE_DEVELOPER_EMAILS: 'robert.pye@ethosvo.org'
+  DISCOURSE_DEVELOPER_EMAILS: 'commons@ethosvo.org'
 
   ## SMTP setup
   DISCOURSE_SMTP_ADDRESS: email-smtp.eu-west-2.amazonaws.com
   DISCOURSE_SMTP_PORT: 587
   DISCOURSE_SMTP_USER_NAME: AKIA5WBSHOMRBYEZWAFA
   DISCOURSE_SMTP_PASSWORD: "BFgW9L8DP/e6CLXBPMGZykmnr9SiiB8TXhqG7vTGoNHz"
-  DISCOURSE_SMTP_DOMAIN: discourse.ethosvo.org
-  DISCOURSE_NOTIFICATION_EMAIL: noreply@discourse.ethosvo.org
+  DISCOURSE_SMTP_DOMAIN: commons.ethosvo.org
+  DISCOURSE_NOTIFICATION_EMAIL: noreply@commons.ethosvo.org
 
   ## Let’s Encrypt email for certificate issuance (via Traefik)
   LETSENCRYPT_ACCOUNT_EMAIL: robert.pye@ethosvo.org
@@ -70,7 +70,7 @@ hooks:
 ## Traefik routing labels
 labels:
   traefik.enable: "true"
-  traefik.http.routers.discourse.rule: "Host(`discourse.ethosvo.org`)"
+  traefik.http.routers.discourse.rule: "Host(`commons.ethosvo.org`)"
   traefik.http.routers.discourse.entrypoints: "websecure"
   traefik.http.routers.discourse.tls: "true"
   traefik.http.services.discourse.loadbalancer.server.port: "80"
