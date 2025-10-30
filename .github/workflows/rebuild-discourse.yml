@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'containers/app.yml'
-  workflow_dispatch: # allows manual trigger
+  workflow_dispatch:
 
 jobs:
   rebuild-discourse:
@@ -14,12 +14,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: SSH into server and rebuild Discourse
+      - name: SSH into Lightsail and rebuild Discourse
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DISC_HOST }}
-          username: ${{ secrets.DISC_USER }}
-          key: ${{ secrets.DISC_SSH_KEY }}
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ubuntu
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           script: |
             echo "🔄 Pulling latest ve-discourse repo..."
             sudo rm -rf /mnt/efs/docker-files/ve-discourse
