@@ -1,0 +1,83 @@
+## this is the all-in-one, standalone Discourse Docker container template
+##
+## After making changes to this file, you MUST rebuild
+## /var/discourse/launcher rebuild app
+##
+## BE *VERY* CAREFUL WHEN EDITING!
+## YAML FILES ARE SUPER SUPER SENSITIVE TO MISTAKES IN WHITESPACE OR ALIGNMENT!
+## visit http://www.yamllint.com/ to validate this file as needed
+
+templates:
+  - "templates/postgres.template.yml"
+  - "templates/redis.template.yml"
+  - "templates/web.template.yml"
+  #- "templates/web.ipv6.template.yml"
+  - "templates/web.ratelimited.template.yml"
+  - "templates/web.ssl.template.yml"
+  - "templates/web.letsencrypt.ssl.template.yml"
+
+## Only expose internal HTTP for Traefik reverse proxy
+expose:
+  - "80"  # internal only; no host mapping
+
+## Ensure Discourse joins the Traefik network after rebuild
+docker_args:
+  - "--network=ve-infra_public"
+
+params:
+  db_default_text_search_config: "pg_catalog.english"
+  db_shared_buffers: "256MB"
+  #db_work_mem: "40MB"
+  #version: tests-passed
+
+env:
+  LC_ALL: en_US.UTF-8
+  LANG: en_US.UTF-8
+  LANGUAGE: en_US.UTF-8
+  UNICORN_WORKERS: 4
+
+  ## Your Discourse hostname (must match the Traefik router rule)
+  DISCOURSE_HOSTNAME: commons.ethosvo.org
+
+  DISCOURSE_DEVELOPER_EMAILS: 'robert.pye@ethosvo.org'
+
+  ## SMTP setup
+  DISCOURSE_SMTP_ADDRESS: email-smtp.eu-west-2.amazonaws.com
+  DISCOURSE_SMTP_PORT: 587
+  DISCOURSE_SMTP_USER_NAME: AKIA5WBSHOMRBYEZWAFA
+  DISCOURSE_SMTP_PASSWORD: "BFgW9L8DP/e6CLXBPMGZykmnr9SiiB8TXhqG7vTGoNHz"
+  DISCOURSE_SMTP_DOMAIN: discourse.ethosvo.org
+  DISCOURSE_NOTIFICATION_EMAIL: noreply@discourse.ethosvo.org
+
+  ## Let’s Encrypt email for certificate issuance (via Traefik)
+  LETSENCRYPT_ACCOUNT_EMAIL: robert.pye@ethosvo.org
+
+volumes:
+  - volume:
+      host: /var/discourse/shared/standalone
+      guest: /shared
+  - volume:
+      host: /var/discourse/shared/standalone/log/var-log
+      guest: /var/log
+
+hooks:
+  after_code:
+    - exec:
+        cd: $home/plugins
+        cmd:
+          - git clone https://github.com/discourse/docker_manager.git
+
+## Traefik routing labels
+labels:
+  traefik.enable: "true"
+  traefik.http.routers.discourse.rule: "Host(`discourse.ethosvo.org`)"
+  traefik.http.routers.discourse.entrypoints: "websecure"
+  traefik.http.routers.discourse.tls: "true"
+  traefik.http.services.discourse.loadbalancer.server.port: "80"
+  # Uncomment if you use the redirect middleware in Traefik:
+  # traefik.http.routers.discourse.middlewares: "redirect-to-https"
+
+run:
+  - exec: echo "Beginning of custom commands"
+  #- exec: rails r "SiteSetting.notification_email='info@unconfigured.discourse.org'"
+  - exec: echo "End of custom commands"
