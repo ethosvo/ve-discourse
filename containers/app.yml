@@ -1,63 +1,49 @@
-## this is the all-in-one, standalone Discourse Docker container template
-##
-## After making changes to this file, you MUST rebuild
-## /var/discourse/launcher rebuild app
-##
-## BE *VERY* CAREFUL WHEN EDITING!
-## YAML FILES ARE SUPER SUPER SENSITIVE TO MISTAKES IN WHITESPACE OR ALIGNMENT!
-## visit http://www.yamllint.com/ to validate this file as needed
+## Discourse all-in-one container (EthosVO Commons)
+## Validated for Cloudflare → Traefik → HTTPS Discourse chain
+## 2025-10-31
 
 templates:
   - "templates/postgres.template.yml"
   - "templates/redis.template.yml"
   - "templates/web.template.yml"
-  #- "templates/web.ipv6.template.yml"
-  - "templates/web.ratelimited.template.yml"
-  # REMOVED these two next templates — Traefik handles SSL
-  #- "templates/web.ssl.template.yml"
-  #- "templates/web.letsencrypt.ssl.template.yml"
+  - "templates/web.ssl.template.yml"           # enable HTTPS inside Discourse
+  - "templates/web.letsencrypt.ssl.template.yml"
 
-## Only expose internal HTTP for Traefik reverse proxy
+## internal HTTP only; Traefik terminates at 443
 expose:
-  - "80"  # internal only; no host mapping
+  - "80"
+  - "443"
 
-## Ensure Discourse joins the Traefik network after rebuild
+## ensure the container joins the Traefik public network
 docker_args:
   - "--network=ve-infra_public"
 
 params:
   db_default_text_search_config: "pg_catalog.english"
   db_shared_buffers: "256MB"
-  #db_work_mem: "40MB"
-  #version: tests-passed
 
 env:
-  LC_ALL: en_US.UTF-8
   LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
   LANGUAGE: en_US.UTF-8
-  UNICORN_WORKERS: 4
 
-  ## Your Discourse hostname (must match the Traefik router rule)
+  ## ───── Core site config ─────
   DISCOURSE_HOSTNAME: commons.ethosvo.org
   DISCOURSE_DEVELOPER_EMAILS: 'commons@ethosvo.org'
-  DISCOURSE_USE_HTTPS: "true"
-  DISCOURSE_FORCE_HTTPS: "false"
+  DISCOURSE_FORCE_HTTPS: true                  # tell Discourse to use HTTPS
+  DISCOURSE_USE_X_FORWARDED_PROTO: true        # respect proxy scheme headers
+  DISCOURSE_TRUSTED_PROXIES: 172.18.0.0/16     # trust Traefik network
 
-  ## SMTP setup
+  ## ───── SMTP mail settings ─────
   DISCOURSE_SMTP_ADDRESS: email-smtp.eu-west-2.amazonaws.com
   DISCOURSE_SMTP_PORT: 587
   DISCOURSE_SMTP_USER_NAME: AKIA5WBSHOMRBYEZWAFA
   DISCOURSE_SMTP_PASSWORD: "BFgW9L8DP/e6CLXBPMGZykmnr9SiiB8TXhqG7vTGoNHz"
   DISCOURSE_SMTP_DOMAIN: commons.ethosvo.org
-  DISCOURSE_NOTIFICATION_EMAIL: noreply@ethosvo.org
+  DISCOURSE_NOTIFICATION_EMAIL: noreply@commons.ethosvo.org
 
-  ## Let’s Encrypt email for certificate issuance (via Traefik)
+  ## ───── Let’s Encrypt (for Discourse internal TLS) ─────
   LETSENCRYPT_ACCOUNT_EMAIL: robert.pye@ethosvo.org
-
-  ## Tell Discourse it's behind Traefik (to stop redirect loops)
-  DISCOURSE_TRUSTED_PROXIES: 172.18.0.0/16
-  DISCOURSE_USE_X_FORWARDED_PROTO: true
-  
 
 volumes:
   - volume:
@@ -67,24 +53,29 @@ volumes:
       host: /var/discourse/shared/standalone/log/var-log
       guest: /var/log
 
+## ───── Hook plugins ─────
 hooks:
   after_code:
     - exec:
         cd: $home/plugins
         cmd:
-          - git clone --depth 1 https://github.com/discourse/docker_manager.git
+          - git clone https://github.com/discourse/docker_manager.git
+          # No Google OAuth plugin (now built-in)
 
-## Traefik routing labels
+## ───── Traefik routing labels ─────
 labels:
   traefik.enable: "true"
+
+  ## Router: HTTPS only, via Let's Encrypt from Traefik
   traefik.http.routers.discourse.rule: "Host(`commons.ethosvo.org`)"
   traefik.http.routers.discourse.entrypoints: "websecure"
   traefik.http.routers.discourse.tls: "true"
-  traefik.http.services.discourse.loadbalancer.server.port: "80"
-  traefik.http.middlewares.discourse-https-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
-  traefik.http.routers.discourse.middlewares: "discourse-https-headers"
+  traefik.http.routers.discourse.tls.certresolver: "letsencrypt"
+
+  ## Service: internal port 443 (HTTPS now active in Discourse)
+  traefik.http.services.discourse.loadbalancer.server.port: "443"
+  traefik.http.services.discourse.loadbalancer.server.scheme: "https"
 
 run:
   - exec: echo "Beginning of custom commands"
-  #- exec: rails r "SiteSetting.notification_email='info@unconfigured.discourse.org'"
   - exec: echo "End of custom commands"
