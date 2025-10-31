@@ -15,8 +15,9 @@ expose:
   - "443"
 
 ## ensure the container joins the Traefik public network
-docker_args:
-  - "--network=ve-infra_public"
+#temp disable so redis hostname resolves.
+#docker_args:
+#  - "--network=ve-infra_public"
 
 params:
   db_default_text_search_config: "pg_catalog.english"
