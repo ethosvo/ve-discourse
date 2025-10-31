@@ -22,27 +22,27 @@ jobs:
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           script_stop: false
-          envs: DISCOURSE_SMTP_ADDRESS,DISCOURSE_SMTP_PORT,DISCOURSE_SMTP_USER_NAME,DISCOURSE_SMTP_PASSWORD
           script: |
             echo "🔄 Pulling latest ve-discourse repo..."
             sudo rm -rf /mnt/efs/docker-files/ve-discourse
             git clone https://github.com/ethosvo/ve-discourse.git /mnt/efs/docker-files/ve-discourse
 
-            echo "📋 Installing envsubst..."
-            sudo apt-get update -qq && sudo apt-get install -yqq gettext-base
-
-            echo "📋 Substituting environment variables..."
+            echo "📋 Substituting SMTP secrets..."
             cd /mnt/efs/docker-files/ve-discourse/containers
-            export DISCOURSE_SMTP_ADDRESS="${{ secrets.DISCOURSE_SMTP_ADDRESS }}"
-            export DISCOURSE_SMTP_PORT="${{ secrets.DISCOURSE_SMTP_PORT }}"
-            export DISCOURSE_SMTP_USER_NAME="${{ secrets.DISCOURSE_SMTP_USER_NAME }}"
-            export DISCOURSE_SMTP_PASSWORD="${{ secrets.DISCOURSE_SMTP_PASSWORD }}"
-            envsubst < app.yml > /tmp/app_resolved.yml
+            cp app.yml /tmp/app_resolved.yml
+
+            sudo sed -i "s|SMTP_ADDRESS_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_ADDRESS }}|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_PORT_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_PORT }}|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_USER_NAME_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_USER_NAME }}|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_PASSWORD_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_PASSWORD }}|g" /tmp/app_resolved.yml
+
+            echo "✅ SMTP secrets inserted successfully"
 
             echo "📋 Deploying resolved app.yml..."
             sudo cp /tmp/app_resolved.yml /mnt/efs/docker-files/discourse/containers/app.yml
+            sudo rm -f /tmp/app_resolved.yml
 
-            echo "🚀 Starting Discourse rebuild (streamed logs)..."
+            echo "🚀 Rebuilding Discourse (streaming logs)..."
             cd /mnt/efs/docker-files/discourse
             sudo ./launcher rebuild app | tee /tmp/discourse-rebuild.log
 
