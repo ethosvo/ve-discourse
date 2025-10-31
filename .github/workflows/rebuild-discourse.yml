@@ -26,57 +26,57 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
 
-      - name: Rebuild Discourse remotely (with keepalive)
+      - name: Rebuild Discourse remotely (keepalive + secret substitution)
+        shell: bash
         run: |
-          ssh -tt \
-            -o StrictHostKeyChecking=no \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=120 \
-            ubuntu@${{ secrets.LIGHTSAIL_HOST }} <<'EOF'
-              set -e
+          ssh -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              ubuntu@${{ secrets.LIGHTSAIL_HOST }} "bash -se" <<'REMOTE'
+          set -e
 
-              echo "🔄 Pulling latest ve-discourse repo..."
-              sudo rm -rf /mnt/efs/docker-files/ve-discourse
-              git clone https://github.com/ethosvo/ve-discourse.git /mnt/efs/docker-files/ve-discourse
+          echo "🔄 Pulling latest ve-discourse repo..."
+          sudo rm -rf /mnt/efs/docker-files/ve-discourse
+          git clone https://github.com/ethosvo/ve-discourse.git /mnt/efs/docker-files/ve-discourse
 
-              echo "📋 Preparing app.yml with SMTP secrets..."
-              cd /mnt/efs/docker-files/ve-discourse/containers
-              cp app.yml /tmp/app_resolved.yml
+          echo "📋 Preparing app.yml with SMTP secrets..."
+          cd /mnt/efs/docker-files/ve-discourse/containers
+          cp app.yml /tmp/app_resolved.yml
 
-              sudo sed -i "s|SMTP_ADDRESS_PLACEHOLDER|${DISCOURSE_SMTP_ADDRESS}|g" /tmp/app_resolved.yml
-              sudo sed -i "s|SMTP_PORT_PLACEHOLDER|${DISCOURSE_SMTP_PORT}|g" /tmp/app_resolved.yml
-              sudo sed -i "s|SMTP_USER_NAME_PLACEHOLDER|${DISCOURSE_SMTP_USER_NAME}|g" /tmp/app_resolved.yml
-              sudo sed -i "s|SMTP_PASSWORD_PLACEHOLDER|${DISCOURSE_SMTP_PASSWORD}|g" /tmp/app_resolved.yml
+          sudo sed -i "s|SMTP_ADDRESS_PLACEHOLDER|${DISCOURSE_SMTP_ADDRESS}|g" /tmp/app_resolved.yml
+          sudo sed -i "s|SMTP_PORT_PLACEHOLDER|${DISCOURSE_SMTP_PORT}|g" /tmp/app_resolved.yml
+          sudo sed -i "s|SMTP_USER_NAME_PLACEHOLDER|${DISCOURSE_SMTP_USER_NAME}|g" /tmp/app_resolved.yml
+          sudo sed -i "s|SMTP_PASSWORD_PLACEHOLDER|${DISCOURSE_SMTP_PASSWORD}|g" /tmp/app_resolved.yml
 
-              echo "✅ SMTP secrets inserted successfully"
+          echo "✅ SMTP secrets inserted successfully"
 
-              echo "🧹 Cleaning up old containers and Redis..."
-              sudo docker ps -aq --filter "name=app" | xargs -r sudo docker stop
-              sudo pkill -f redis-server || true
+          echo "🧹 Cleaning up old containers and Redis..."
+          sudo docker ps -aq --filter "name=app" | xargs -r sudo docker stop
+          sudo pkill -f redis-server || true
 
-              echo "📋 Deploying resolved app.yml..."
-              sudo cp /tmp/app_resolved.yml /mnt/efs/docker-files/discourse/containers/app.yml
-              sudo shred -u /tmp/app_resolved.yml  # Securely delete temp file
+          echo "📋 Deploying resolved app.yml..."
+          sudo cp /tmp/app_resolved.yml /mnt/efs/docker-files/discourse/containers/app.yml
+          sudo shred -u /tmp/app_resolved.yml
 
-              echo "🚀 Rebuilding Discourse (this may take 30–40 min)..."
-              cd /mnt/efs/docker-files/discourse
-              sudo ./launcher rebuild app | tee /tmp/discourse-rebuild.log
+          echo "🚀 Rebuilding Discourse (this may take 30–40 min)..."
+          cd /mnt/efs/docker-files/discourse
+          sudo ./launcher rebuild app | tee /tmp/discourse-rebuild.log
 
-              echo "🟢 Starting Discourse container..."
-              sudo ./launcher start app
+          echo "🟢 Starting Discourse container..."
+          sudo ./launcher start app
 
-              echo "⏱ Waiting for Discourse to respond..."
-              for i in {1..60}; do
-                if curl -fsS http://localhost:80 >/dev/null 2>&1; then
-                  echo "✅ Discourse is up and responding."
-                  break
-                fi
-                echo "⏳ Waiting for container (attempt $i/60)..."
-                sleep 10
-              done
+          echo "⏱ Waiting for Discourse to respond..."
+          for i in {1..60}; do
+            if curl -fsS http://localhost:80 >/dev/null 2>&1; then
+              echo "✅ Discourse is up and responding."
+              break
+            fi
+            echo "⏳ Waiting for container (attempt ${i}/60)..."
+            sleep 10
+          done
 
-              echo "🧹 Cleaning temporary logs..."
-              sudo rm -f /tmp/discourse-rebuild.log
+          echo "🧹 Cleaning temporary logs..."
+          sudo rm -f /tmp/discourse-rebuild.log
 
-              echo "✅ Rebuild complete and secrets securely cleaned up!"
-          EOF
+          echo "✅ Rebuild complete and secrets securely cleaned up!"
+          REMOTE
