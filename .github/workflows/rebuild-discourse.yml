@@ -32,8 +32,14 @@ jobs:
           ssh -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
-              ubuntu@${{ secrets.LIGHTSAIL_HOST }} "bash -se" <<'REMOTE'
+              ubuntu@${{ secrets.LIGHTSAIL_HOST }} bash -se <<EOF
           set -e
+
+          # Export secrets into remote shell
+          export DISCOURSE_SMTP_ADDRESS="${DISCOURSE_SMTP_ADDRESS}"
+          export DISCOURSE_SMTP_PORT="${DISCOURSE_SMTP_PORT}"
+          export DISCOURSE_SMTP_USER_NAME="${DISCOURSE_SMTP_USER_NAME}"
+          export DISCOURSE_SMTP_PASSWORD="${DISCOURSE_SMTP_PASSWORD}"
 
           echo "🔄 Pulling latest ve-discourse repo..."
           sudo rm -rf /mnt/efs/docker-files/ve-discourse
@@ -79,4 +85,4 @@ jobs:
           sudo rm -f /tmp/discourse-rebuild.log
 
           echo "✅ Rebuild complete and secrets securely cleaned up!"
-          REMOTE
+          EOF
