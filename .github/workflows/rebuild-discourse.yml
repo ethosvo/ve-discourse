@@ -16,6 +16,11 @@ jobs:
 
       - name: SSH into Lightsail and rebuild Discourse
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DISCOURSE_SMTP_ADDRESS: ${{ secrets.DISCOURSE_SMTP_ADDRESS }}
+          DISCOURSE_SMTP_PORT: ${{ secrets.DISCOURSE_SMTP_PORT }}
+          DISCOURSE_SMTP_USER_NAME: ${{ secrets.DISCOURSE_SMTP_USER_NAME }}
+          DISCOURSE_SMTP_PASSWORD: ${{ secrets.DISCOURSE_SMTP_PASSWORD }}
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ubuntu
