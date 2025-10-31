@@ -6,18 +6,16 @@ templates:
   - "templates/postgres.template.yml"
   - "templates/redis.template.yml"
   - "templates/web.template.yml"
-  - "templates/web.ssl.template.yml"           # enable HTTPS inside Discourse
-  - "templates/web.letsencrypt.ssl.template.yml"
+  #- "templates/web.ssl.template.yml"           # traefik handles SSL
+  #- "templates/web.letsencrypt.ssl.template.yml"
 
 ## internal HTTP only; Traefik terminates at 443
 expose:
   - "80"
-  - "443"
 
 ## ensure the container joins the Traefik public network
-#temp disable so redis hostname resolves.
-#docker_args:
-#  - "--network=ve-infra_public"
+docker_args:
+  - "--network=ve-infra_public"
 
 params:
   db_default_text_search_config: "pg_catalog.english"
@@ -41,7 +39,7 @@ env:
   DISCOURSE_SMTP_USER_NAME: AKIA5WBSHOMRBYEZWAFA
   DISCOURSE_SMTP_PASSWORD: "BFgW9L8DP/e6CLXBPMGZykmnr9SiiB8TXhqG7vTGoNHz"
   DISCOURSE_SMTP_DOMAIN: commons.ethosvo.org
-  DISCOURSE_NOTIFICATION_EMAIL: noreply@commons.ethosvo.org
+  DISCOURSE_NOTIFICATION_EMAIL: noreply@ethosvo.org
 
   ## ───── Let’s Encrypt (for Discourse internal TLS) ─────
   LETSENCRYPT_ACCOUNT_EMAIL: robert.pye@ethosvo.org
@@ -73,9 +71,9 @@ labels:
   traefik.http.routers.discourse.tls: "true"
   traefik.http.routers.discourse.tls.certresolver: "letsencrypt"
 
-  ## Service: internal port 443 (HTTPS now active in Discourse)
-  traefik.http.services.discourse.loadbalancer.server.port: "443"
-  traefik.http.services.discourse.loadbalancer.server.scheme: "https"
+  ## Service: internal port 80 (TLS terminates at Traefik)
+  traefik.http.services.discourse.loadbalancer.server.port: "80"
+  traefik.http.services.discourse.loadbalancer.server.scheme: "http"
 
 run:
   - exec: echo "Beginning of custom commands"
