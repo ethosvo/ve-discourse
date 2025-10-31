@@ -9,33 +9,41 @@ on:
 jobs:
   rebuild-discourse:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: SSH into Lightsail and rebuild Discourse
+      - name: SSH to Lightsail and rebuild Discourse
         uses: appleboy/ssh-action@v1.2.0
-        env:
-          DISCOURSE_SMTP_ADDRESS: ${{ secrets.DISCOURSE_SMTP_ADDRESS }}
-          DISCOURSE_SMTP_PORT: ${{ secrets.DISCOURSE_SMTP_PORT }}
-          DISCOURSE_SMTP_USER_NAME: ${{ secrets.DISCOURSE_SMTP_USER_NAME }}
-          DISCOURSE_SMTP_PASSWORD: ${{ secrets.DISCOURSE_SMTP_PASSWORD }}
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script_stop: false
+          envs: DISCOURSE_SMTP_ADDRESS,DISCOURSE_SMTP_PORT,DISCOURSE_SMTP_USER_NAME,DISCOURSE_SMTP_PASSWORD
           script: |
             echo "🔄 Pulling latest ve-discourse repo..."
             sudo rm -rf /mnt/efs/docker-files/ve-discourse
             git clone https://github.com/ethosvo/ve-discourse.git /mnt/efs/docker-files/ve-discourse
 
-            echo "📋 Copying updated app.yml..."
-            sudo cp /mnt/efs/docker-files/ve-discourse/containers/app.yml \
-                     /mnt/efs/docker-files/discourse/containers/app.yml
+            echo "📋 Installing envsubst..."
+            sudo apt-get update -qq && sudo apt-get install -yqq gettext-base
 
-            echo "🚀 Rebuilding Discourse..."
+            echo "📋 Substituting environment variables..."
+            cd /mnt/efs/docker-files/ve-discourse/containers
+            export DISCOURSE_SMTP_ADDRESS="${{ secrets.DISCOURSE_SMTP_ADDRESS }}"
+            export DISCOURSE_SMTP_PORT="${{ secrets.DISCOURSE_SMTP_PORT }}"
+            export DISCOURSE_SMTP_USER_NAME="${{ secrets.DISCOURSE_SMTP_USER_NAME }}"
+            export DISCOURSE_SMTP_PASSWORD="${{ secrets.DISCOURSE_SMTP_PASSWORD }}"
+            envsubst < app.yml > /tmp/app_resolved.yml
+
+            echo "📋 Deploying resolved app.yml..."
+            sudo cp /tmp/app_resolved.yml /mnt/efs/docker-files/discourse/containers/app.yml
+
+            echo "🚀 Starting Discourse rebuild (streamed logs)..."
             cd /mnt/efs/docker-files/discourse
-            sudo ./launcher rebuild app
+            sudo ./launcher rebuild app | tee /tmp/discourse-rebuild.log
 
             echo "✅ Rebuild complete!"
