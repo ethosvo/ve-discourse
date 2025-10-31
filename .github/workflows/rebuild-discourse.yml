@@ -17,33 +17,59 @@ jobs:
 
       - name: SSH to Lightsail and rebuild Discourse
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DISCOURSE_SMTP_ADDRESS: ${{ secrets.DISCOURSE_SMTP_ADDRESS }}
+          DISCOURSE_SMTP_PORT: ${{ secrets.DISCOURSE_SMTP_PORT }}
+          DISCOURSE_SMTP_USER_NAME: ${{ secrets.DISCOURSE_SMTP_USER_NAME }}
+          DISCOURSE_SMTP_PASSWORD: ${{ secrets.DISCOURSE_SMTP_PASSWORD }}
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          envs: DISCOURSE_SMTP_ADDRESS,DISCOURSE_SMTP_PORT,DISCOURSE_SMTP_USER_NAME,DISCOURSE_SMTP_PASSWORD
           script_stop: false
           script: |
             echo "🔄 Pulling latest ve-discourse repo..."
             sudo rm -rf /mnt/efs/docker-files/ve-discourse
             git clone https://github.com/ethosvo/ve-discourse.git /mnt/efs/docker-files/ve-discourse
 
-            echo "📋 Substituting SMTP secrets..."
+            echo "📋 Preparing app.yml with SMTP secrets..."
             cd /mnt/efs/docker-files/ve-discourse/containers
             cp app.yml /tmp/app_resolved.yml
 
-            sudo sed -i "s|SMTP_ADDRESS_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_ADDRESS }}|g" /tmp/app_resolved.yml
-            sudo sed -i "s|SMTP_PORT_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_PORT }}|g" /tmp/app_resolved.yml
-            sudo sed -i "s|SMTP_USER_NAME_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_USER_NAME }}|g" /tmp/app_resolved.yml
-            sudo sed -i "s|SMTP_PASSWORD_PLACEHOLDER|${{ secrets.DISCOURSE_SMTP_PASSWORD }}|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_ADDRESS_PLACEHOLDER|$DISCOURSE_SMTP_ADDRESS|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_PORT_PLACEHOLDER|$DISCOURSE_SMTP_PORT|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_USER_NAME_PLACEHOLDER|$DISCOURSE_SMTP_USER_NAME|g" /tmp/app_resolved.yml
+            sudo sed -i "s|SMTP_PASSWORD_PLACEHOLDER|$DISCOURSE_SMTP_PASSWORD|g" /tmp/app_resolved.yml
 
             echo "✅ SMTP secrets inserted successfully"
 
+            echo "🧹 Cleaning up old containers and Redis..."
+            sudo docker ps -aq --filter "name=app" | xargs -r sudo docker stop
+            sudo pkill -f redis-server || true
+
             echo "📋 Deploying resolved app.yml..."
             sudo cp /tmp/app_resolved.yml /mnt/efs/docker-files/discourse/containers/app.yml
-            sudo rm -f /tmp/app_resolved.yml
+            sudo shred -u /tmp/app_resolved.yml  # Secure delete of temp file
 
             echo "🚀 Rebuilding Discourse (streaming logs)..."
             cd /mnt/efs/docker-files/discourse
             sudo ./launcher rebuild app | tee /tmp/discourse-rebuild.log
 
-            echo "✅ Rebuild complete!"
+            echo "🟢 Starting Discourse container..."
+            sudo ./launcher start app
+
+            echo "⏱ Waiting for Discourse to respond..."
+            for i in {1..60}; do
+              if curl -fsS http://localhost:80 >/dev/null 2>&1; then
+                echo "✅ Discourse is up and responding."
+                break
+              fi
+              echo "⏳ Waiting for container (attempt $i/60)..."
+              sleep 10
+            done
+
+            echo "🧹 Cleaning temporary logs..."
+            sudo rm -f /tmp/discourse-rebuild.log
+
+            echo "✅ Rebuild complete and secrets securely cleaned up!"
