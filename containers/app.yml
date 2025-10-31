@@ -35,10 +35,6 @@ env:
   DISCOURSE_USE_X_FORWARDED_PROTO: true        # respect proxy scheme headers
   DISCOURSE_TRUSTED_PROXIES: 172.18.0.0/16     # trust Traefik network
 
-  ## ───── Redis connection ─────
-  DISCOURSE_REDIS_HOST: redis
-  DISCOURSE_REDIS_PORT: 6379
-
   ## ───── SMTP mail settings ─────
   DISCOURSE_SMTP_ADDRESS: email-smtp.eu-west-2.amazonaws.com
   DISCOURSE_SMTP_PORT: 587
